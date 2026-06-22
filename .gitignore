@@ -8,6 +8,9 @@
 /app/*
 !/app/.gitkeep
 
+# Database dumps
+/dumps/
+
 # Docker
 docker/**/*.log
 

@@ -16,6 +16,10 @@ RUN install-php-extensions \
     pcntl \
     exif
 
+# Optional Xdebug — set INSTALL_XDEBUG=true at build time, XDEBUG_MODE at runtime
+ARG INSTALL_XDEBUG=false
+RUN if [ "$INSTALL_XDEBUG" = "true" ]; then install-php-extensions xdebug; fi
+
 COPY Caddyfile /etc/caddy/Caddyfile
 
 WORKDIR /app

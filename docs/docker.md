@@ -4,7 +4,7 @@
 
 | Service | Image | Purpose |
 |---------|-------|---------|
-| `frankenphp` | Custom (`docker/frankenphp`) | PHP 8.3 app server (Caddy + FrankenPHP) |
+| `frankenphp` | Custom (`docker/frankenphp`) | PHP 8.5 app server (Caddy + FrankenPHP) |
 | `mariadb` | `mariadb:11.4` | Primary database |
 | `phpmyadmin` | `phpmyadmin:5` | DB admin UI |
 | `mailpit` | `axllent/mailpit` | SMTP catch-all + web UI |
@@ -36,7 +36,7 @@ Configure in workspace `.env`:
 
 - Caddyfile: `docker/frankenphp/Caddyfile`
 - Document root: `/app/public` (Laravel)
-- Vite proxy: requests under `/build` and `/resources` forward to `host.docker.internal:5173` when Vite runs on the host
+- Vite: Laravel's `@vite()` directive handles dev/prod switching automatically. Run `make vite` on the host for HMR; run `make build-assets` to compile for production.
 
 ## Troubleshooting
 
@@ -48,7 +48,7 @@ Configure in workspace `.env`:
 **Database connection refused**
 
 - Wait for MariaDB healthcheck: `make ps`
-- Confirm `app/.env` has `DB_HOST=mariadb` (`make app-env-docker`)
+- Confirm `app/.env` has `DB_HOST=mariadb` (run `make env` to re-patch)
 
 **Vite assets 404**
 

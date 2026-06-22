@@ -8,6 +8,8 @@ services:
     build:
       context: ./frankenphp
       dockerfile: Dockerfile
+      args:
+        INSTALL_XDEBUG: ${INSTALL_XDEBUG:-false}
     container_name: ${COMPOSE_PROJECT_NAME}-frankenphp
     restart: unless-stopped
     ports:
@@ -21,6 +23,7 @@ services:
     environment:
       SERVER_NAME: ${SERVER_NAME:-localhost}
       FRANKENPHP_CONFIG: /etc/caddy/Caddyfile
+      XDEBUG_MODE: ${XDEBUG_MODE:-off}
     depends_on:
       mariadb:
         condition: service_healthy
@@ -35,6 +38,8 @@ services:
     build:
       context: ./frankenphp
       dockerfile: Dockerfile
+      args:
+        INSTALL_XDEBUG: ${INSTALL_XDEBUG:-false}
     container_name: ${COMPOSE_PROJECT_NAME}-queue
     restart: unless-stopped
     command: php artisan queue:listen --tries=3 --timeout=90
@@ -57,6 +62,8 @@ services:
     build:
       context: ./frankenphp
       dockerfile: Dockerfile
+      args:
+        INSTALL_XDEBUG: ${INSTALL_XDEBUG:-false}
     container_name: ${COMPOSE_PROJECT_NAME}-scheduler
     restart: unless-stopped
     command: php artisan schedule:work
@@ -113,7 +120,7 @@ services:
       - app
 
   mailpit:
-    image: axllent/mailpit:latest
+    image: axllent/mailpit:v1.21
     container_name: ${COMPOSE_PROJECT_NAME}-mailpit
     restart: unless-stopped
     ports:

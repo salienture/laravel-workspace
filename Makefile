@@ -23,7 +23,7 @@ help: ## Show available targets
 
 # --- Workspace setup ---
 
-.PHONY: setup reconfigure init env link-app
+.PHONY: setup reconfigure init env
 setup: ## Detect / select Laravel app and write workspace .env
 	@bash "$(ROOT)scripts/setup.sh"
 
@@ -59,23 +59,6 @@ env: ## Copy .env templates and patch app .env for Docker services
 		cp "$(APP_DIR)/.env.example" "$(APP_DIR)/.env"; \
 	fi
 	@bash "$(ROOT)scripts/patch-app-env.sh" "$(APP_DIR)/.env"
-
-link-app: ## Symlink a Laravel repo into workspace as app/ (SOURCE=/path/to/repo)
-	@SOURCE="$${SOURCE:?Set SOURCE=/path/to/your-laravel-repo}"; \
-	SOURCE="$${SOURCE/#\~/$${HOME}}"; \
-	if [[ "$${SOURCE}" != /* ]]; then SOURCE="$(ROOT)$${SOURCE}"; fi; \
-	ABS="$$(cd "$$SOURCE" && pwd)"; \
-	TARGET="$(ROOT)app"; \
-	if [ -L "$$TARGET" ]; then \
-		ln -sfn "$$ABS" "$$TARGET"; \
-	elif [ -d "$$TARGET" ] && [ -f "$$TARGET/artisan" ]; then \
-		echo "$$TARGET already contains a Laravel project"; exit 0; \
-	else \
-		rm -rf "$$TARGET"; \
-		ln -sfn "$$ABS" "$$TARGET"; \
-	fi; \
-	echo "Linked app -> $$ABS"; \
-	echo "APP_PATH=$$ABS" >> "$(ROOT).env"
 
 # --- Docker ---
 
@@ -120,7 +103,7 @@ composer: ## Run composer in app (ARGS="install")
 npm: ## Run npm on host (ARGS="run dev")
 	cd "$(APP_DIR)" && npm $(ARGS)
 
-.PHONY: app-install migrate fresh seed test pint
+.PHONY: app-install migrate fresh seed test pint tinker queue-restart build-assets
 app-install: ## composer install + npm install
 	$(FRANKENPHP) composer install --no-interaction
 	@cd "$(APP_DIR)" && npm install
@@ -139,6 +122,15 @@ test: ## Run Pest / PHPUnit
 
 pint: ## Run Laravel Pint (code style)
 	$(FRANKENPHP) ./vendor/bin/pint
+
+tinker: ## Open Laravel Tinker REPL
+	$(FRANKENPHP) php artisan tinker
+
+queue-restart: ## Signal queue workers to restart after next job
+	$(FRANKENPHP) php artisan queue:restart
+
+build-assets: ## Compile frontend assets for production
+	cd "$(APP_DIR)" && npm run build
 
 .PHONY: key-generate cache-clear optimize
 key-generate: ## Generate app key
@@ -161,12 +153,23 @@ vite: ## Start Vite dev server on host
 
 # --- Database ---
 
-.PHONY: mysql redis-cli
+.PHONY: mysql redis-cli dump restore
 mysql: ## MariaDB CLI
 	$(COMPOSE) exec mariadb mariadb -u$${DB_USERNAME} -p$${DB_PASSWORD} $${DB_DATABASE}
 
 redis-cli: ## Redis CLI
 	$(COMPOSE) exec redis redis-cli
+
+dump: ## Dump database to dumps/YYYY-MM-DD_HH-MM-SS.sql
+	@mkdir -p "$(ROOT)dumps"
+	@FILE="$(ROOT)dumps/$$(date +%Y-%m-%d_%H-%M-%S).sql"; \
+	$(COMPOSE) exec -T mariadb mariadb-dump -u$${DB_USERNAME} -p$${DB_PASSWORD} $${DB_DATABASE} > "$$FILE" && \
+	echo "Saved: $$FILE"
+
+restore: ## Restore database from FILE=dumps/x.sql
+	@test -n "$(FILE)" || (echo "Usage: make restore FILE=dumps/x.sql"; exit 1)
+	$(COMPOSE) exec -T mariadb mariadb -u$${DB_USERNAME} -p$${DB_PASSWORD} $${DB_DATABASE} < "$(FILE)"
+	@echo "Restored: $(FILE)"
 
 # --- Cleanup ---
 
@@ -175,5 +178,10 @@ clean: ## Remove stopped containers and dangling images
 	$(COMPOSE) down --remove-orphans
 	docker image prune -f
 
-destroy: ## Stop containers and delete all volumes (destructive)
+destroy: ## Stop containers and delete all volumes — DELETES ALL DATA
+	@if [ -t 0 ]; then \
+		printf "This will permanently delete all database data and volumes. Continue? [y/N] "; \
+		read ans; \
+		[ "$$ans" = "y" ] || [ "$$ans" = "Y" ] || (echo "Aborted."; exit 1); \
+	fi
 	$(COMPOSE) down -v --remove-orphans

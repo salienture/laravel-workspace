@@ -75,12 +75,17 @@ make artisan ARGS="route:list"
 make composer ARGS="require vendor/package"
 make test
 make pint
+make tinker             # Laravel Tinker REPL
 make migrate
 make fresh              # migrate:fresh --seed
 make seed
 make shell              # bash inside FrankenPHP container
 make mysql              # MariaDB CLI
 make redis-cli
+make dump               # export DB to dumps/
+make restore FILE=dumps/x.sql
+make queue-restart      # signal workers to restart
+make build-assets       # npm run build (production)
 make logs
 make ps
 make restart
